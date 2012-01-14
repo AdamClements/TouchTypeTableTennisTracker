@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <title>TouchType Table Tennis Tracker</title>
+  </head>
+
+  <body>
+    <p>{{ challenger_name }} {{ challenger_score }} - {{ defender_score }} {{ defender_name }}</p>
+    <p>{{ challenger_name }} {% if challenge_success %} won {% else %} lost {% endif %} a {% if ladder_game %} ladder {% else %} friendly {% endif %} game against {{ defender_name }}. </p>
+    <form action="" type="get">
+      Is this correct?
+      <input type='submit' value="Yes"/>
+
+      <input type='hidden' name='challenger'        value='{{ challenger        }}'/>
+      <input type='hidden' name='defender'          value='{{ defender          }}'/>
+      <input type='hidden' name='challenger_score'  value='{{ challenger_score  }}'/>
+      <input type='hidden' name='defender_score'    value='{{ defender_score    }}'/>
+      <input type='hidden' name='ladder_game'       value='{{ ladder_game       }}'/>
+      <input type='hidden' name='challenge_success' value='{{ challenge_success }}'/>
+    </form>
+
+    <form action="" type="post">
+      <input type='submit' value="No, go back"/>
+    </form>
+  </body>
+</html>

@@ -5,10 +5,28 @@
 
   <body>
     <p> Hello {{ user }}, how you doing? </p>
-    <table>
+    <form action="" method="get">
+      <input type="text" name="new_result"/>
+    </form>
+    
+    <table border="1" cellpadding="5">
       <tr>
-        <td>Rank</td><td>Name</td><td>Wins</td><td>Losses</td><td>Latest News</td>
+        <td>Rank</td>
+        <td>Name</td>
+        <td>Wins</td>
+        <td>Losses</td>
+        <td>Latest News</td>
       </tr>
+
+      {% for player in rankings %}
+        <tr>
+          <td>{{ player.rank }}</td>
+          <td>{{ player.user }}</td>
+          <td>{{ player.wins }}</td>
+          <td>{{ player.loss }}</td>
+          <td>{{ player.news }}</td>
+        </tr>
+      {% endfor %}
     </table>
   </body>
 </html>
