@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 
 from google.appengine.ext.webapp import template
 from google.appengine.ext import webapp
@@ -33,10 +34,18 @@ def get_salutation(email):
   segment of their email address """
   return email.split("@")[0].replace(".", " ").title() 
 
+def everybodys_name():
+  """ Get a list of everybody's names for reverse name matching """
+  return Rankings.all(keys_only=True)
+
 def get_lowest_rank():
   """ Query the database for the lowest ranked person, in order
   to add a new person to the bottom rung of the ladder """
-  return Rankings.all().order('-rank').get().rank + 1
+  lowest_ranking = Rankings.all().order('-rank').get()
+  if lowest_ranking == None:
+    return 1
+  else:
+    return lowest_ranking.rank + 1
 
 class MainPage(webapp.RequestHandler):
   def __init__(self):
@@ -56,12 +65,77 @@ class MainPage(webapp.RequestHandler):
       self.display_ladder()
 
   def confirm_new_result(self, result_string):
-    challenger = "myface@example.com"
-    defender = "test@example.com"
-    challenger_score = 3
-    defender_score = 2
-    challenge_success = True
-    ladder_game = True
+    # Extract numbers (between 0 and 3, game scores)
+    scores = re.match('.*([0-3]).+([0-3]).*', result_string)
+    if not scores:
+      raise Exception('Couldn\'t match any scores')
+
+    score_1 = scores.group(1)
+    score_2 = scores.group(2)
+
+    # Extract win/loss sentiment
+    win_sentiment = re.search('beat|won|thrashed', result_string, re.IGNORECASE)
+    lose_sentiment = re.search('lost', result_string, re.IGNORECASE)
+
+    # Work out names (possibly shortened)
+    possibilities = []
+    unigrams = result_string.split(" ")
+    opponent = None
+    they_won = None
+
+    for name in everybodys_name():
+      logging.info('Checking against %s' % name.name().split('@')[0])
+      found = re.search('%s' % name.name().split("@")[0], result_string, re.IGNORECASE)
+      if found:
+        logging.info('Found!')
+        opponent = name.name()
+        if win_sentiment and win_sentiment.start() < found.start():
+          they_won = True
+        elif win_sentiment and win_sentiment.start() > found.start():
+          they_won = False
+        elif lose_sentiment and lose_sentiment.start() < found.start():
+          they_won = False
+        elif lose_sentiment and lose_sentiment.start() > found.start():
+          they_won = True
+        else:
+          raise Exception('Couldn\'t work out who won, didn\'t detect a win/lose sentiment')
+
+    if opponent == None:
+      raise Exception('Found no opponent!!')
+    
+    me = Rankings.get_by_key_name(self.email)
+    them = Rankings.get_by_key_name(opponent)
+    
+    # Establish challenger/defender order
+    challenger = None
+    defender = None
+    challenger_score = None
+    defender_score = None
+    challenge_success = None
+    ladder_game = abs(me.rank - them.rank) <3
+
+    if me.rank < them.rank:
+      challenger = them.key().name()
+      defender = me.key().name()
+      if they_won:
+        challenge_success = False
+        challenger_score = min(score_1, score_2)
+        defender_score = max(score_1, score_2)
+      else:
+        challenge_success = True
+        challenger_score = max(score_1, score_2)
+        defender_score = min(score_1, score_2)
+    else:
+      challenger = me.key().name()
+      defender = them.key().name()
+      if they_won:
+        challenge_success = True
+        challenger_score = max(score_1, score_2)
+        defender_score = min(score_1, score_2)
+      else:
+        challenge_success = False
+        challenger_score = min(score_1, score_2)
+        defender_score = max(score_1, score_2)
 
     template_values = {
         'challenger'        : challenger,
@@ -84,8 +158,6 @@ class MainPage(webapp.RequestHandler):
     defender_score    = int(self.request.get('defender_score'   ))
     challenger_score  = int(self.request.get('challenger_score' ))
 
-    logging.info("Got " + str(defender_score))
-
     history_record = History(
             defender         = defender        ,
             challenger       = challenger      ,
@@ -93,14 +165,12 @@ class MainPage(webapp.RequestHandler):
             challenger_score = challenger_score,
             ladder_game      = ladder_game     )
 
-    history_record.put()
-
     # Get the two records:
     c_record = Rankings.get_by_key_name(challenger)
     d_record = Rankings.get_by_key_name(defender)
 
     if not c_record or not d_record:
-      Error("No records retrieved for challenger/defender. Crap.")
+      Exception("No records retrieved for challenger/defender. Crap.")
       
     if challenge_success:
       c_record.wins += 1
@@ -135,8 +205,7 @@ class MainPage(webapp.RequestHandler):
         d_record.news = "Won a friendly %d-%d against %s" % \
                         ( defender_score, challenger_score, get_salutation(challenger) )
 
-    c_record.put()
-    d_record.put()
+    db.put([c_record, d_record, history_record])
 
   def check_user_exists(self):
     # First see if this user is on the ladder already, if not sign them up
