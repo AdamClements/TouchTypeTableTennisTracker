@@ -2,19 +2,23 @@ import os
 import logging
 import re
 
+from time import gmtime, strftime
+
 from google.appengine.ext.webapp import template
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.api import users
 from google.appengine.ext import db
 
-class History(db.Model):
+class MatchHistory(db.Model):
   """ Stores all the matches that take place along with dates
   and scores """
   defender         = db.StringProperty   (required=True)
   challenger       = db.StringProperty   (required=True)
   defender_score   = db.IntegerProperty  (required=True)
   challenger_score = db.IntegerProperty  (required=True)
+  defender_rank    = db.IntegerProperty  (required=False)   # Might be undefined if the rank is unaffected
+  challenger_rank  = db.IntegerProperty  (required=False)   # Note: This is the rank *after* the match
   ladder_game      = db.BooleanProperty  (required=False, default=False)
   date_played      = db.DateTimeProperty (auto_now_add=True)
 
@@ -57,7 +61,7 @@ class MainPage(webapp.RequestHandler):
       self.confirm_new_result(self.request.get('new_result'))
 
     elif 'challenger' in self.request.arguments():
-      self.commit_result(self.request.arguments())
+      self.commit_result()
       self.display_ladder()          
 
     else:
@@ -112,7 +116,7 @@ class MainPage(webapp.RequestHandler):
     challenger_score = None
     defender_score = None
     challenge_success = None
-    ladder_game = abs(me.rank - them.rank) <3
+    ladder_game = abs(me.rank - them.rank) <=3
 
     if me.rank < them.rank:
       challenger = them.key().name()
@@ -150,7 +154,7 @@ class MainPage(webapp.RequestHandler):
     
     self.response.out.write(template.render('confirm_result.html', template_values))
   
-  def commit_result(self, results):
+  def commit_result(self):
     challenge_success = self.request.get('challenge_success') == "True"
     ladder_game       = self.request.get('ladder_game'      ) == "True"
     defender          = self.request.get('defender'         )
@@ -158,7 +162,7 @@ class MainPage(webapp.RequestHandler):
     defender_score    = int(self.request.get('defender_score'   ))
     challenger_score  = int(self.request.get('challenger_score' ))
 
-    history_record = History(
+    history_record = MatchHistory(
             defender         = defender        ,
             challenger       = challenger      ,
             defender_score   = defender_score  ,
@@ -179,6 +183,9 @@ class MainPage(webapp.RequestHandler):
       if ladder_game:
         c_record.rank, d_record.rank = d_record.rank, c_record.rank
 
+        history_record.challenger_rank = c_record.rank
+        history_record.defender_rank   = d_record.rank
+
         c_record.news = "Won %d-%d against %s, moving to rank %s" % \
                         ( challenger_score, defender_score,
                           get_salutation(defender), c_record.rank )
@@ -196,6 +203,9 @@ class MainPage(webapp.RequestHandler):
       d_record.wins += 1
       
       if ladder_game:
+        history_record.challenger_rank = c_record.rank
+        history_record.defender_rank   = d_record.rank
+
         c_record.news = "Unsuccessfully challenged %s, losing %d-%d" % \
                         ( get_salutation(defender), challenger_score, defender_score )
 
@@ -220,10 +230,41 @@ class MainPage(webapp.RequestHandler):
   def display_ladder(self):
     rankings  = Rankings.all().order('rank')
 
+    ordered_names = Rankings.all(keys_only=True).order('rank')
+    recent_events = MatchHistory.all().order('date_played').fetch(100)
+    
+    # This should be do-able in a clever way with lambdas and such
+    ranking_timeline_data = []
+    for event in recent_events:
+      if event.ladder_game and event.challenger_score > event.defender_score:
+        datalist = []
+        for key in ordered_names:
+          logging.info("Ladder game: %s, Chall: %s, Def %s" %(event.ladder_game, event.challenger_rank, event.defender_rank))
+          name = key.name()
+          if name == event.challenger:
+            datalist.append("-%s" % event.challenger_rank)
+          elif name== event.defender:
+            datalist.append("-%s" % event.defender_rank)
+          else:
+            datalist.append('undefined')
+
+        ranking_timeline_data.append("[new Date('%s'), %s ]," % (event.date_played, ",".join(datalist)))
+    
+    datalist = []
+    for key in rankings:
+      datalist.append("-%s" % key.rank)
+    ranking_timeline_data.append("[new Date('%s'), %s ]," % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), ",".join(datalist)))
+
+    ordered_people = []
+    for key in ordered_names:
+      ordered_people.append(get_salutation(key.name()))
+
     template_values = {
         'user': self.user_name,
         'email' : self.email,
         'rankings' : rankings,
+        'ordered_people' : ordered_people,
+        'ranking_timeline_data' : ranking_timeline_data,
     }
     
     self.response.out.write(template.render('ladder_template.html', template_values))

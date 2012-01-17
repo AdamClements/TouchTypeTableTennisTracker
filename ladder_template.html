@@ -1,6 +1,35 @@
 <html>
   <head>
     <title>TouchType Table Tennis Tracker</title>
+    <script type='text/javascript' src='http://www.google.com/jsapi'></script>
+    <script type='text/javascript'>
+      google.load('visualization', '1', {'packages':['annotatedtimeline']});
+      google.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = new google.visualization.DataTable();
+        data.addColumn('date', 'Date');
+        {% for person in ordered_people %}
+        data.addColumn('number', '{{ person }}');
+        {% endfor %}
+        data.addRows([
+        {% for line in ranking_timeline_data %}
+          {{ line }}
+        {% endfor %}
+        ]);
+
+        var chart = new google.visualization.AnnotatedTimeLine(document.getElementById('chart_div'));
+        chart.draw(data, 
+            {
+              'displayAnnotations': false,
+              'displayRangeSelector' : false,
+              'displayLegendDots' : false,
+              'displayZoomButtons' : false,
+              'displayDateBarSeparator' : false,
+              'dateFormat' : ' ',
+              'scaleType' : 'allFixed',
+            });
+      }
+    </script>
   </head>
 
   <body>
@@ -28,5 +57,8 @@
         </tr>
       {% endfor %}
     </table>
+
+    <div id='chart_div' style='width: 100%; height: 100%;'></div>
+    
   </body>
 </html>
