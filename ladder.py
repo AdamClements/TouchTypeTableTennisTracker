@@ -232,28 +232,33 @@ class MainPage(webapp.RequestHandler):
 
     ordered_names = Rankings.all(keys_only=True).order('rank')
     recent_events = MatchHistory.all().order('date_played').fetch(100)
-    
+    i = 0
     # This should be do-able in a clever way with lambdas and such
     ranking_timeline_data = []
     for event in recent_events:
       if event.ladder_game and event.challenger_score > event.defender_score:
-        datalist = []
+        post_match_rankings = []
+        pre_match_rankings = []
         for key in ordered_names:
           logging.info("Ladder game: %s, Chall: %s, Def %s" %(event.ladder_game, event.challenger_rank, event.defender_rank))
           name = key.name()
           if name == event.challenger:
-            datalist.append("-%s" % event.challenger_rank)
+            post_match_rankings.append("%s" % event.challenger_rank)
+            pre_match_rankings.append("%s" % event.defender_rank)
           elif name== event.defender:
-            datalist.append("-%s" % event.defender_rank)
+            post_match_rankings.append("%s" % event.defender_rank)
+            pre_match_rankings.append("%s" % event.challenger_rank)
           else:
-            datalist.append('undefined')
-
-        ranking_timeline_data.append("[new Date('%s'), %s ]," % (event.date_played, ",".join(datalist)))
+            post_match_rankings.append('undefined')
+            pre_match_rankings.append('undefined')
+        ranking_timeline_data.append("[%s]," % ( ",".join(pre_match_rankings)))
+        ranking_timeline_data.append("[%s]," % ( ",".join(post_match_rankings)))
     
-    datalist = []
+    current_rankings = []
     for key in rankings:
-      datalist.append("-%s" % key.rank)
-    ranking_timeline_data.append("[new Date('%s'), %s ]," % (strftime("%Y-%m-%d %H:%M:%S", gmtime()), ",".join(datalist)))
+      current_rankings.append("%s" % key.rank)
+    ranking_timeline_data.append("[%s]," % (",".join(current_rankings)))
+    ranking_timeline_data.append("[%s]," % (",".join(current_rankings)))
 
     ordered_people = []
     for key in ordered_names:

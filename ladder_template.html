@@ -3,11 +3,11 @@
     <title>TouchType Table Tennis Tracker</title>
     <script type='text/javascript' src='http://www.google.com/jsapi'></script>
     <script type='text/javascript'>
-      google.load('visualization', '1', {'packages':['annotatedtimeline']});
+      google.load('visualization', '1', {'packages':['corechart']});
       google.setOnLoadCallback(drawChart);
       function drawChart() {
         var data = new google.visualization.DataTable();
-        data.addColumn('date', 'Date');
+        //data.addColumn('string', 'x');
         {% for person in ordered_people %}
         data.addColumn('number', '{{ person }}');
         {% endfor %}
@@ -17,16 +17,17 @@
         {% endfor %}
         ]);
 
-        var chart = new google.visualization.AnnotatedTimeLine(document.getElementById('chart_div'));
+        var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
         chart.draw(data, 
-            {
-              'displayAnnotations': false,
-              'displayRangeSelector' : false,
-              'displayLegendDots' : false,
-              'displayZoomButtons' : false,
-              'displayDateBarSeparator' : false,
-              'dateFormat' : ' ',
-              'scaleType' : 'allFixed',
+            { curveType: 'function',
+              interpolateNulls: true,
+              vAxis: {
+                baselineColor:   'white',
+                direction: -1,
+                gridlines: { color: 'white' }, 
+                textStyle: { color: 'white' },
+              },
+
             });
       }
     </script>
