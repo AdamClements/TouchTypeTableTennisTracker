@@ -243,8 +243,8 @@ class MainPage(webapp.RequestHandler):
     ranking_timeline_data = []
     for event in recent_events:
       if event.ladder_game and event.challenger_score > event.defender_score:
-        post_match_rankings = []
-        pre_match_rankings = []
+        post_match_rankings = ['undefined'] # The first value represents the x axis, seems to be required.
+        pre_match_rankings = ['undefined']
         for key in ordered_names:
           logging.info("Ladder game: %s, Chall: %s, Def %s" %(event.ladder_game, event.challenger_rank, event.defender_rank))
           name = key.name()
@@ -260,7 +260,7 @@ class MainPage(webapp.RequestHandler):
         ranking_timeline_data.append("[%s]," % ( ",".join(pre_match_rankings)))
         ranking_timeline_data.append("[%s]," % ( ",".join(post_match_rankings)))
     
-    current_rankings = []
+    current_rankings = ['undefined']
     for key in rankings:
       current_rankings.append("%s" % key.rank)
     ranking_timeline_data.append("[%s]," % (",".join(current_rankings)))
