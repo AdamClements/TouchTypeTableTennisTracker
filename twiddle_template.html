@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <title>TouchType Table Tennis Tracker Twiddler</title>
+  </head>
+
+  <body>
+    <p></p>
+    <form action="" method="get">
+      <input type="hidden" name="twiddle" value="true"/>
+      <table>
+        <tr>
+          <td>
+            Challenger:
+            {% for person in ordered_people %}
+            <p><input type="radio" name="challenger" value="{{ person.name }}">{{ person.name }}</input></p>
+            {% endfor %}
+            Score:
+            <input type="text" name="challenger_score"/>
+          </td>
+          <td>
+            Defender:
+            {% for person in ordered_people %}
+            <p><input type="radio" name="defender" value="{{ person.name }}">{{ person.name }}</input></p>
+            {% endfor %}
+            Score:
+            <input type="text" name="defender_score"/>
+          </td>
+          <td>
+            <p><input type="radio" name="ladder_game" value="True">Ladder game</input></p>
+            <p><input type="radio" name="ladder_game" value="False">Not a ladder game</input></p>
+          </td>
+          <td>
+            <p><input type="radio" name="challenge_success" value="True">Challenge Success</input></p>
+            <p><input type="radio" name="challenge_success" value="False">Challenge Fail</input></p>
+          </td>
+        </tr>
+      </table>
+      <input type="submit">
+    </form>
+    </body>
+  </html>

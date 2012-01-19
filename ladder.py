@@ -60,19 +60,25 @@ class MainPage(webapp.RequestHandler):
     if 'new_result' in self.request.arguments():
       self.confirm_new_result(self.request.get('new_result'))
 
+    elif 'twiddle' in self.request.arguments():
+      if 'challenger' in self.request.arguments():
+        self.commit_result()
+
+      self.twiddle_results()
+
     elif 'challenger' in self.request.arguments():
       self.commit_result()
       self.display_ladder()
-
-    elif 'twiddle' in self.request.arguments():
-      self.twiddle_results()
 
     else:
       self.check_user_exists()
       self.display_ladder()
 
   def confirm_new_result(self, result_string):
-    # Extract numbers (between 0 and 3, game scores)
+    """ Takes an inputted string and parses it to try and determine the results of
+    a match. It assumes that the currently logged in person was one of the participants """
+
+    # Extract numbers (between 0 and 3, hopefully the game scores)
     scores = re.match('.*([0-3]).+([0-3]).*', result_string)
     if not scores:
       raise Exception('Couldn\'t match any scores')
@@ -160,7 +166,11 @@ class MainPage(webapp.RequestHandler):
     
     self.response.out.write(template.render('confirm_result.html', template_values))
   
+
   def commit_result(self):
+    """ Takes a series of parameters representing a match and commits the result,
+    changing rankings and news feeds where necessary """
+
     challenge_success = self.request.get('challenge_success') == "True"
     ladder_game       = self.request.get('ladder_game'      ) == "True"
     defender          = self.request.get('defender'         )
@@ -224,7 +234,7 @@ class MainPage(webapp.RequestHandler):
     db.put([c_record, d_record, history_record])
 
   def check_user_exists(self):
-    # First see if this user is on the ladder already, if not sign them up
+    """ Check if the logged in user is on the ladder already, if not sign them up """
     user_record = Rankings.get_by_key_name(self.email)
     if not user_record:
       user_record = Rankings( key_name = self.email, 
@@ -234,6 +244,9 @@ class MainPage(webapp.RequestHandler):
       user_record.put()
     
   def display_ladder(self):
+    """ Collate all the results and ranking data, feeding them into the ladder display template.
+    The ladder template also contains input fields to submit new results """
+
     rankings  = Rankings.all().order('rank')
 
     ordered_names = Rankings.all(keys_only=True).order('rank')
@@ -280,6 +293,16 @@ class MainPage(webapp.RequestHandler):
     
     self.response.out.write(template.render('ladder_template.html', template_values))
 
+  def twiddle_results(self):
+    """ A (secret?) interface to add in results manually for other people """
+    
+    ordered_people = Rankings.all(keys_only=True).order('rank')
+
+    template_values = {
+        'ordered_people': ordered_people,
+    }
+
+    self.response.out.write(template.render('twiddle_template.html', template_values))
       
 application = webapp.WSGIApplication([('/', MainPage)], debug=True)
 
