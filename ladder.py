@@ -60,6 +60,18 @@ class MainPage(webapp.RequestHandler):
     if 'new_result' in self.request.arguments():
       self.confirm_new_result(self.request.get('new_result'))
 
+    elif 'rank' in self.request.arguments():
+      entry = Rankings(
+          key_name = '%s@touchtype-online.com' % self.request.get('name'),
+          rank = int(self.request.get('rank')),
+          user = get_salutation(self.request.get('name')),
+          news = "Was imported...",
+          wins = int(self.request.get('wins')),
+          loss = int(self.request.get('loss')),
+          )
+      entry.put()
+      self.response.out.write("<p>Success</p>")
+
     elif 'twiddle' in self.request.arguments():
       if 'challenger' in self.request.arguments():
         self.commit_result()
@@ -100,10 +112,8 @@ class MainPage(webapp.RequestHandler):
     they_won = None
 
     for name in everybodys_name():
-      logging.info('Checking against %s' % name.name().split('@')[0])
       found = re.search('%s' % name.name().split("@")[0], result_string, re.IGNORECASE)
       if found:
-        logging.info('Found!')
         opponent = name.name()
         if win_sentiment and win_sentiment.start() < found.start():
           they_won = True
@@ -202,13 +212,13 @@ class MainPage(webapp.RequestHandler):
         history_record.challenger_rank = c_record.rank
         history_record.defender_rank   = d_record.rank
 
-        c_record.news = "Won %d-%d against %s, moving to rank %s" % \
+        c_record.news = "Won %d-%d against %s, moving from rank %s" % \
                         ( challenger_score, defender_score,
-                          get_salutation(defender), c_record.rank )
+                          get_salutation(defender), d_record.rank )
 
-        d_record.news = "Lost %d-%d to %s, dropping to rank %s" % \
+        d_record.news = "Lost %d-%d to %s, dropping from rank %s" % \
                         ( defender_score, challenger_score,
-                          get_salutation(challenger), d_record.rank )
+                          get_salutation(challenger), c_record.rank )
       else:
         c_record.news = "Won a friendly %d-%d against %s" % \
                         ( challenger_score, defender_score, 
@@ -259,7 +269,6 @@ class MainPage(webapp.RequestHandler):
         post_match_rankings = ['undefined'] # The first value represents the x axis, seems to be required.
         pre_match_rankings = ['undefined']
         for key in ordered_names:
-          logging.info("Ladder game: %s, Chall: %s, Def %s" %(event.ladder_game, event.challenger_rank, event.defender_rank))
           name = key.name()
           if name == event.challenger:
             post_match_rankings.append("%s" % event.challenger_rank)
