@@ -62,7 +62,10 @@ class MainPage(webapp.RequestHandler):
 
     elif 'challenger' in self.request.arguments():
       self.commit_result()
-      self.display_ladder()          
+      self.display_ladder()
+
+    elif 'twiddle' in self.request.arguments():
+      self.twiddle_results()
 
     else:
       self.check_user_exists()
@@ -78,8 +81,11 @@ class MainPage(webapp.RequestHandler):
     score_2 = scores.group(2)
 
     # Extract win/loss sentiment
-    win_sentiment = re.search('beat|won|thrashed', result_string, re.IGNORECASE)
-    lose_sentiment = re.search('lost', result_string, re.IGNORECASE)
+    winning_words = ['beat', 'won', 'thrashed', 'whitewashed']
+    losing_words  = ['beaten by', 'lost', 'thrashed by', 'whitewashed by']
+
+    win_sentiment  = re.search(r'\b%s\b' % r'\b|\b'.join(winning_words), result_string, re.IGNORECASE)
+    lose_sentiment = re.search(r'\b%s\b' % r'\b|\b'.join(losing_words) , result_string, re.IGNORECASE)
 
     # Work out names (possibly shortened)
     possibilities = []
@@ -232,7 +238,7 @@ class MainPage(webapp.RequestHandler):
 
     ordered_names = Rankings.all(keys_only=True).order('rank')
     recent_events = MatchHistory.all().order('date_played').fetch(100)
-    i = 0
+
     # This should be do-able in a clever way with lambdas and such
     ranking_timeline_data = []
     for event in recent_events:
