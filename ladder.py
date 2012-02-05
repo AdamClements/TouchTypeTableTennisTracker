@@ -154,7 +154,7 @@ class MainPage(webapp.RequestHandler):
     # Extract numbers (between 0 and 3, hopefully the game scores)
     scores = re.match('.*([0-3]).+([0-3]).*', result_string)
     if not scores:
-      raise Exception('Couldn\'t match any scores')
+      raise Exception('Did you give me the score? I\'m looking for two numbers between 0 and 3 and I can\'t see any...')
 
     score_1 = scores.group(1)
     score_2 = scores.group(2)
@@ -185,10 +185,10 @@ class MainPage(webapp.RequestHandler):
         elif lose_sentiment and lose_sentiment.start() > found.start():
           they_won = True
         else:
-          raise Exception('Couldn\'t work out who won, didn\'t detect a win/lose sentiment')
+          raise Exception('Sorry, I couldn\'t work out who won from that sentence, could you please be a little clearer?')
 
     if opponent == None:
-      raise Exception('Found no opponent!!')
+      raise Exception('Sorry, who did you say you were playing?')
     
     me = Rankings.get_by_key_name(self.email)
     them = Rankings.get_by_key_name(opponent)
@@ -296,7 +296,13 @@ class MainPage(webapp.RequestHandler):
     }
     
     self.response.out.write(template.render('ladder_template.html', template_values))
+  
+  def handle_exception(self, exception, debug=True):
+    template_values = {
+        'message' : exception,
+    }
 
+    self.response.out.write(template.render('error_template.html', template_values))
       
 class ResultTwiddler(webapp.RequestHandler):
   def get(self):
@@ -342,7 +348,10 @@ class ResultTwiddler(webapp.RequestHandler):
 
     self.response.out.write(template.render('twiddle_template.html', template_values))
 
-application = webapp.WSGIApplication([('/', MainPage), ('/twiddle', ResultTwiddler)], debug=True)
+application = webapp.WSGIApplication([
+    ('/',        MainPage       ), 
+    ('/twiddle', ResultTwiddler ),
+  ], debug=True)
 
 def main():
   run_wsgi_app(application)
