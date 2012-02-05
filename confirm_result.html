@@ -6,7 +6,7 @@
   <body>
     <p>{{ challenger_name }} {{ challenger_score }} - {{ defender_score }} {{ defender_name }}</p>
     <p>{{ challenger_name }} {% if challenge_success %} won {% else %} lost {% endif %} a {% if ladder_game %} ladder {% else %} friendly {% endif %} game against {{ defender_name }}. </p>
-    <form action="" type="get">
+    <form action="/" method="post">
       Is this correct?
       <input type='submit' value="Yes"/>
 
@@ -18,7 +18,7 @@
       <input type='hidden' name='challenge_success' value='{{ challenge_success }}'/>
     </form>
 
-    <form action="" type="post">
+    <form action="/" method="post">
       <input type='submit' value="No, go back"/>
     </form>
   </body>

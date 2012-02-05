@@ -51,40 +51,101 @@ def get_lowest_rank():
   else:
     return lowest_ranking.rank + 1
 
+def commit_result(result):
+  """ Takes a series of parameters representing a match and commits the result,
+  changing rankings and news feeds where necessary """
+  challenge_success = result['challenge_success'] 
+  ladder_game       = result['ladder_game'] 
+  defender          = result['defender'] 
+  challenger        = result['challenger'] 
+  defender_score    = result['defender_score'] 
+  challenger_score  = result['challenger_score'] 
+
+  history_record = MatchHistory(
+          defender         = result['defender']        ,
+          challenger       = result['challenger']      ,
+          defender_score   = result['defender_score']  ,
+          challenger_score = result['challenger_score'],
+          ladder_game      = result['ladder_game']     )
+
+  # Get the two records:
+  c_record = Rankings.get_by_key_name(result['challenger'])
+  d_record = Rankings.get_by_key_name(result['defender'])
+
+  if not c_record or not d_record:
+    Exception("No records retrieved for challenger/defender. Crap.")
+    
+  if result['challenge_success']:
+    c_record.wins += 1
+    d_record.loss += 1
+    
+    if result['ladder_game']:
+      c_record.rank, d_record.rank = d_record.rank, c_record.rank
+
+      history_record.challenger_rank = c_record.rank
+      history_record.defender_rank   = d_record.rank
+
+      c_record.news = "Won %d-%d against %s, moving from rank %s" % \
+                      ( result['challenger_score'], result['defender_score'],
+                        get_salutation(result['defender']), d_record.rank )
+
+      d_record.news = "Lost %d-%d to %s, dropping from rank %s" % \
+                      ( result['defender_score'], result['challenger_score'],
+                        get_salutation(result['challenger']), c_record.rank )
+    else:
+      c_record.news = "Won a friendly %d-%d against %s" % \
+                      ( result['challenger_score'], result['defender_score'], 
+                        get_salutation(result['defender']) )
+      # Isn't really news losing a friendly... don't bother
+  else:
+    c_record.loss += 1
+    d_record.wins += 1
+    
+    if result['ladder_game']:
+      history_record.challenger_rank = c_record.rank
+      history_record.defender_rank   = d_record.rank
+
+      c_record.news = "Unsuccessfully challenged %s, losing %d-%d" % \
+                      ( get_salutation(result['defender']), result['challenger_score'], result['defender_score'] )
+
+      d_record.news = "Successfully defended against %s, winning %d-%d" % \
+                      ( get_salutation(result['challenger']), result['defender_score'], result['challenger_score'] )
+    else:
+      d_record.news = "Won a friendly %d-%d against %s" % \
+                      ( result['defender_score'], result['challenger_score'], get_salutation(result['challenger']) )
+
+  db.put([c_record, d_record, history_record])
+
+
 class MainPage(webapp.RequestHandler):
   def __init__(self):
     self.user_name = get_salutation(users.User().nickname())
     self.email     = users.User().email()
 
   def get(self):
+    """ Basic loading of the normal ladder display, or the twiddle display """
+    self.check_user_exists()
+    self.display_ladder()
+
+  def post(self):
+    """ Handles new inputted results """
     if 'new_result' in self.request.arguments():
       self.confirm_new_result(self.request.get('new_result'))
 
-    elif 'rank' in self.request.arguments():
-      entry = Rankings(
-          key_name = '%s@touchtype-online.com' % self.request.get('name'),
-          rank = int(self.request.get('rank')),
-          user = get_salutation(self.request.get('name')),
-          news = "Was imported...",
-          wins = int(self.request.get('wins')),
-          loss = int(self.request.get('loss')),
-          )
-      entry.put()
-      self.response.out.write("<p>Success</p>")
-
-    elif 'twiddle' in self.request.arguments():
-      if 'challenger' in self.request.arguments():
-        self.commit_result()
-
-      self.twiddle_results()
-
     elif 'challenger' in self.request.arguments():
-      self.commit_result()
-      self.display_ladder()
+      result = {
+        'challenge_success' : self.request.get('challenge_success') == "True",
+        'ladder_game'       : self.request.get('ladder_game'      ) == "True",
+        'defender'          : self.request.get('defender'         ),
+        'challenger'        : self.request.get('challenger'       ),
+        'defender_score'    : int(self.request.get('defender_score'   )),
+        'challenger_score'  : int(self.request.get('challenger_score' )),
+        }
 
-    else:
-      self.check_user_exists()
+      commit_result(result)
       self.display_ladder()
+    else:
+      raise Exception('Unrecognised POST data')
 
   def confirm_new_result(self, result_string):
     """ Takes an inputted string and parses it to try and determine the results of
@@ -177,72 +238,6 @@ class MainPage(webapp.RequestHandler):
     self.response.out.write(template.render('confirm_result.html', template_values))
   
 
-  def commit_result(self):
-    """ Takes a series of parameters representing a match and commits the result,
-    changing rankings and news feeds where necessary """
-
-    challenge_success = self.request.get('challenge_success') == "True"
-    ladder_game       = self.request.get('ladder_game'      ) == "True"
-    defender          = self.request.get('defender'         )
-    challenger        = self.request.get('challenger'       )
-    defender_score    = int(self.request.get('defender_score'   ))
-    challenger_score  = int(self.request.get('challenger_score' ))
-
-    history_record = MatchHistory(
-            defender         = defender        ,
-            challenger       = challenger      ,
-            defender_score   = defender_score  ,
-            challenger_score = challenger_score,
-            ladder_game      = ladder_game     )
-
-    # Get the two records:
-    c_record = Rankings.get_by_key_name(challenger)
-    d_record = Rankings.get_by_key_name(defender)
-
-    if not c_record or not d_record:
-      Exception("No records retrieved for challenger/defender. Crap.")
-      
-    if challenge_success:
-      c_record.wins += 1
-      d_record.loss += 1
-      
-      if ladder_game:
-        c_record.rank, d_record.rank = d_record.rank, c_record.rank
-
-        history_record.challenger_rank = c_record.rank
-        history_record.defender_rank   = d_record.rank
-
-        c_record.news = "Won %d-%d against %s, moving from rank %s" % \
-                        ( challenger_score, defender_score,
-                          get_salutation(defender), d_record.rank )
-
-        d_record.news = "Lost %d-%d to %s, dropping from rank %s" % \
-                        ( defender_score, challenger_score,
-                          get_salutation(challenger), c_record.rank )
-      else:
-        c_record.news = "Won a friendly %d-%d against %s" % \
-                        ( challenger_score, defender_score, 
-                          get_salutation(defender) )
-        # Isn't really news losing a friendly... don't bother
-    else:
-      c_record.loss += 1
-      d_record.wins += 1
-      
-      if ladder_game:
-        history_record.challenger_rank = c_record.rank
-        history_record.defender_rank   = d_record.rank
-
-        c_record.news = "Unsuccessfully challenged %s, losing %d-%d" % \
-                        ( get_salutation(defender), challenger_score, defender_score )
-
-        d_record.news = "Successfully defended against %s, winning %d-%d" % \
-                        ( get_salutation(challenger), defender_score, challenger_score )
-      else:
-        d_record.news = "Won a friendly %d-%d against %s" % \
-                        ( defender_score, challenger_score, get_salutation(challenger) )
-
-    db.put([c_record, d_record, history_record])
-
   def check_user_exists(self):
     """ Check if the logged in user is on the ladder already, if not sign them up """
     user_record = Rankings.get_by_key_name(self.email)
@@ -302,18 +297,52 @@ class MainPage(webapp.RequestHandler):
     
     self.response.out.write(template.render('ladder_template.html', template_values))
 
-  def twiddle_results(self):
+      
+class ResultTwiddler(webapp.RequestHandler):
+  def get(self):
+    """ Show the initial twiddling interface """
+    self.twiddle_results()
+
+  def post(self):
+    """ Parse any results """
+    if 'challenger' in self.request.arguments():
+      result = {
+        'challenge_success' : self.request.get('challenge_success') == "True",
+        'ladder_game'       : self.request.get('ladder_game'      ) == "True",
+        'defender'          : self.request.get('defender'         ),
+        'challenger'        : self.request.get('challenger'       ),
+        'defender_score'    : int(self.request.get('defender_score'   )),
+        'challenger_score'  : int(self.request.get('challenger_score' )),
+        }
+
+      commit_result(result)
+      self.twiddle_results("Successfully twiddled rankings")
+
+    else:
+      """ TODO: Add an interface for this to the twiddler """
+      entry = Rankings(
+          key_name = '%s@touchtype-online.com' % self.request.get('name'),
+          rank = int(self.request.get('rank')),
+          user = get_salutation(self.request.get('name')),
+          news = "Was imported...",
+          wins = int(self.request.get('wins')),
+          loss = int(self.request.get('loss')),
+          )
+      entry.put()
+      self.twiddle_results("Successfully imported a fresh person")
+
+  def twiddle_results(self, message=""):
     """ A (secret?) interface to add in results manually for other people """
-    
     ordered_people = Rankings.all(keys_only=True).order('rank')
 
     template_values = {
         'ordered_people': ordered_people,
+        'message'       : message,
     }
 
     self.response.out.write(template.render('twiddle_template.html', template_values))
-      
-application = webapp.WSGIApplication([('/', MainPage)], debug=True)
+
+application = webapp.WSGIApplication([('/', MainPage), ('/twiddle', ResultTwiddler)], debug=True)
 
 def main():
   run_wsgi_app(application)

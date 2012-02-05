@@ -7,6 +7,6 @@ handlers:
 - url: /stylesheets
   static_dir: stylesheets
 
-- url: /
+- url: /.*
   script: ladder.py
   login: required
