@@ -1,5 +1,6 @@
 * {
   font-family: monospace;
+  text-align:  center;
 }
 
 #centredform {
@@ -14,5 +15,6 @@ table {
 
 input {
   margin-left: 10%;
+  margin-right: 10%;
   width: 80%;
 }

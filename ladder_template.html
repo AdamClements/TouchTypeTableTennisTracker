@@ -18,6 +18,8 @@
         {% endfor %}
         ]);
 
+        document.getElementById('chart_div').style.height = '100%';
+
         var chart = new google.visualization.LineChart(document.getElementById('chart_div'));
         chart.draw(data, 
             { curveType: 'function',
@@ -41,7 +43,7 @@
   </head>
 
   <body>
-    <div id='chart_div' style='width: 100%; height: 100%;'></div>
+    <div id='chart_div' style='width: 100%;'></div>
     
     <p style="text-align: center"> Hello {{ user }}, how are you doing? Any new matches to tell me about? </p>
     <form class="boxinput" action="" method="post">

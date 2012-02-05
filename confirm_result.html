@@ -1,13 +1,14 @@
 <html>
   <head>
     <title>TouchType Table Tennis Tracker</title>
+    <link rel="stylesheet" type="text/css" href="stylesheets/main.css"/>
   </head>
 
   <body>
     <p>{{ challenger_name }} {{ challenger_score }} - {{ defender_score }} {{ defender_name }}</p>
     <p>{{ challenger_name }} {% if challenge_success %} won {% else %} lost {% endif %} a {% if ladder_game %} ladder {% else %} friendly {% endif %} game against {{ defender_name }}. </p>
+    <p>Is this correct?</p>
     <form action="/" method="post">
-      Is this correct?
       <input type='submit' value="Yes"/>
 
       <input type='hidden' name='challenger'        value='{{ challenger        }}'/>
